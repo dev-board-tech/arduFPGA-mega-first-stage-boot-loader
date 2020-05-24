@@ -46,14 +46,14 @@
 #define KBD_DIR						DDRA
 #define KBD_PORT					PORTA
 #define KBD_IN						PINA
-#define KBD_B_PIN					(1<<7)
-#define KBD_U_PIN					(1<<6)
-#define KBD_D_PIN					(1<<5)
+#define KBD_U_PIN					(1<<7)
+#define KBD_D_PIN					(1<<6)
+#define KBD_B_PIN					(1<<5)
 #define KBD_K_PIN					(1<<4)
 #define KBD_INT_PIN					(1<<3)
 
-#define LED_R						0b00100000
-#define LED_B						0b01000000
+#define LED_B						0b00100000
+#define LED_R						0b01000000
 #define LED_G						0b10000000
 
 /*******************************************/
