@@ -102,6 +102,18 @@
 #define SPI_APP_CS_ASSERT()			SPI_CS_5_PORT &= ~SPI_CS_5_PIN
 #define SPI_APP_CS_DEASSERT()		SPI_CS_5_PORT |= SPI_CS_5_PIN
 
+#define SPI_CS_6_DIR				DDRB
+#define SPI_CS_6_PORT				PORTB
+#define SPI_CS_6_PIN				(1<<0)
+#define SPI_xCS_CS_ASSERT()			SPI_CS_6_PORT &= ~SPI_CS_6_PIN
+#define SPI_xCS_CS_DEASSERT()		SPI_CS_6_PORT |= SPI_CS_6_PIN
+
+#define SPI_CS_7_DIR				DDRD
+#define SPI_CS_7_PORT				PORTD
+#define SPI_CS_7_PIN				(1<<5)
+#define SPI_xDCS_CS_ASSERT()		SPI_CS_7_PORT &= ~SPI_CS_7_PIN
+#define SPI_xDCS_CS_DEASSERT()		SPI_CS_7_PORT |= SPI_CS_7_PIN
+
 /*******************************************/
 
 #define SSD1306_RST_DIR				DDRD
@@ -111,6 +123,16 @@
 #define SSD1306_DC_DIR				DDRD
 #define SSD1306_DC_PORT				PORTD
 #define SSD1306_DC_PIN				(1<<4)
+
+/*******************************************/
+
+#define VS10xx_RST_DIR				DDRD
+#define VS10xx_RST_PORT				PORTD
+#define VS10xx_RST_PIN				(1<<0)
+
+#define VS10xx_DREQ_DIR				DDRF
+#define VS10xx_DREQ_PORT			PORTF
+#define VS10xx_DREQ_PIN				(1<<0)
 
 /*******************************************/
 
