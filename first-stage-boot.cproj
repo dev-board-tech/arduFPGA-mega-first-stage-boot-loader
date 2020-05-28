@@ -118,7 +118,7 @@
     </ToolchainSettings>
     <PreBuildEvent>
     </PreBuildEvent>
-    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-arduboy-emulator\l1_boot_ld.mem" -g 2 -b 1f800</PostBuildEvent>
+    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-iCE40UP5K-arduboy-emulator\l1_boot_ld.mem" -g 2 -b 1f800 &amp; IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-arduboy-emulator\l1_boot_ld.mem" -g 2 -b 1f800</PostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\arduFPGA-app-common\25flash.c">
