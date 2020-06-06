@@ -9,6 +9,7 @@
 #define F_CPU	16000000
 #define SSD1306_USE_NO_BUF
 #define POWER_UP_WITH_USER_APP
+//#define DEBUG_BINARY
 
 /*
  This ports does not exist in the original micro controller.
@@ -42,6 +43,7 @@
 #define BOOT_STAT_USR_APP_RUNNING	(1 << 2)
 #define BOOT_STAT_APP_PGM_WR_EN		(1 << 3)
 #define BOOT_STAT_IO_RST			(1 << 4)
+#define BOOT_STAT_DEBUG_EN			(1 << 7)
 
 #define KBD_DIR						DDRA
 #define KBD_PORT					PORTA
