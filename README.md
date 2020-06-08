@@ -10,6 +10,7 @@ Into this bootloader are four entry vectors place at the beginning of the bootlo
 1f802:	_int
 1f804:	main
 1f806:	_set_serv_addr
+1f808:	_flash_write
 ```
 
 * ##### "_init" is the start vector ( reset vector ) of the bootloader, here the uC land after hardware reset.
@@ -43,6 +44,17 @@ In main function will do the fallowing actions in order:
 
 ## _set_serv_addr
 Is the vector of function that sets the service address to be call by the "int" service function and need to have the fallowing format: void _set_serv_addr(uint16_t service_addr);.
+
+## _flash_write
+This function can be used by user application to change its own ROM content, the design does not allow the user application to directly edit the ROM content when running from the same ROM.
+
+This function being located in the first stage boot-loader will allow user application to change the ROM content.
+
+This function is useful for cases where the application use more data that can fit into the ROM memory and load it from another external memory as needed, or the application is to big, and is split in a bunch of library's that can be load in the ROM memory as needed.
+
+The caller need to call this function as *** void _flash_write(uint32_t a, uint16_t *buf, uint16_t len) ***
+
+* To pay attention that the data buffer is a buffer of uint16_t words and the given length need to be the number of words and not the number of bytes.
 
 ## DEBUG (NOT FUNCTIONAL YET, one of the reasons is some issues in the RX section of the UART IP)
 In development, a soft debug using the UART interface and can be check by hand using a terminal.
