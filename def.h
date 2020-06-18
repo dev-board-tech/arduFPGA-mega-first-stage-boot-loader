@@ -9,7 +9,8 @@
 #define F_CPU	16000000
 #define SSD1306_USE_NO_BUF
 #define POWER_UP_WITH_USER_APP
-//#define DEBUG_BINARY
+//#define DEBUG_ENABLE
+#define DEBUG_BINARY
 
 /*
  This ports does not exist in the original micro controller.
@@ -32,6 +33,7 @@
 #define FLASH_APP_MEMORY_SIZES_EEP_OFFSET	0xC
 
 /* These IO's are placed in SRAM data space, we need to subtract 0x20 value to address them correctly. */
+#define SEC_REG_ADDR				_SFR_IO8(0xD8)
 #define F_CNT_L						_SFR_IO8(0xDB)
 #define F_CNT_H						_SFR_IO8(0xDC)
 #define F_DATA_L					_SFR_IO8(0xDD)
@@ -45,6 +47,12 @@
 #define BOOT_STAT_IO_RST			(1 << 4)
 #define BOOT_STAT_DEBUG_EN			(1 << 7)
 
+#define BOOT_VECTOR_MAIN			(0x1f804)
+#define BOOT_VECTOR_SET_SERVICE_VECT (0x1f806)
+#define BOOT_VECTOR_FLASH_WRITE		(0x1f808)
+#define BOOT_VECTOR_FLASH_DES_ERASE	(0x1f80A)
+#define BOOT_VECTOR_FLASH_DES_WRITE	(0x1f80C)
+
 #define KBD_DIR						DDRA
 #define KBD_PORT					PORTA
 #define KBD_IN						PINA
@@ -53,6 +61,8 @@
 #define KBD_B_PIN					(1<<5)
 #define KBD_K_PIN					(1<<4)
 #define KBD_INT_PIN					(1<<3)
+#define KBD_L_PIN					(1<<2)
+#define KBD_R_PIN					(1<<1)
 
 #define LED_B						0b00100000
 #define LED_R						0b01000000
@@ -141,6 +151,16 @@
 #define uSD_DC_DIR					DDRD
 #define uSD_DC_PORT					PORTD
 #define uSD_DC_PIN					(1<<1)
+
+/*******************************************/
+
+#define PWM_VOLUME_PORT				PORTA
+#define PWM_VOLIME_PIN_gp			(2)
+#define PWM_VOLIME_PIN_gm			(0x03 << PWM_VOLIME_PIN_gp)
+
+#define DISC_USR_KBD_PORT			PORTA
+#define DISC_USR_KBD_PIN_bp			(4)
+#define DISC_USR_KBD_PIN_bm			(1 << DISC_USR_KBD_PIN_bp)
 
 /*******************************************/
 typedef struct {
