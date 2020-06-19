@@ -27,11 +27,18 @@ After power up the uC jump to 0x1f800, from there jumps to the "_init", "_init" 
 
 The "int" function do the fallowing actions in order:
 * Check if the user application service function vector address is set up, if is different than 0x0000 will call the function, the header of the function need to be: void service_Ptr(void);.
-* If the "BOOT_STAT_DEBUG_EN" bit in "BOOT_STAT" PORT is set, will listen to the UART interface for commands, more detail in DEBUG section.
-* If the INTERRUPT button is pressed at last two seconds will do the fallowing:
-1) If no other key is press, will load and launch the GUI boot-loader, that will save the EEPROM content to the uSD.
-2) If UP button is press, will change the colour of the LED, at first INTERRUPT press to RED, at second press to GREEN, at third to BLUE and at fourth will power off the LED and continue from beginning, all these actions without interrupting the user application.
-3) If DOWN button is press, will turn all three colours ON and OFF and act like a flashlight, all these actions without interrupting the user application.
+* If the "BOOT_STAT_DEBUG_EN" bit in "BOOT_STAT" PORT is set and 'DEBUG_ENABLE' is defined, will listen to the UART interface for commands, more detail in DEBUG section.
+* if the INT button is press between 100mS and 500mS ( short push ) will interrupt the running application, load the GUI boot-loader that save the EEPROM content to the uSD memory card.
+* If the INT button is press more than 500mS, keyboard will have other functions as described below:
+1): INT + B button change the LED colour B,G,R.
+2): INT + A button turn ON/OFF the flashlight (RGB led becomes flashlight).
+3): INT + UP increase the game volume in four steps, from mute to maximum.
+4): INT + DN decrease the game volume in four steps, from maximum to mute.
+
+###### When INT button is press, the keyboard is disconnected for the running application, will not receive any key press until INT button is released.
+
+###### The arduboy sound IO's are pass thru two 4 bit PWM modulators that controls the volume, bit[3:2] of the PWM's inputs are connected to '0' logic, bit[1:0] of the PWM inputs are connected to PIO[3:2] of the PORTA, the maximum volume is 1/4 of total power to avoid blowing up the ears of the listener when listen to headphones.
+
 
 ## main
 In main function will do the fallowing actions in order:
