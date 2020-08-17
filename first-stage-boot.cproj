@@ -20,14 +20,27 @@
     <OverrideVtor>false</OverrideVtor>
     <CacheFlash>true</CacheFlash>
     <ProgFlashFromRam>true</ProgFlashFromRam>
-    <RamSnippetAddress />
+    <RamSnippetAddress>0x20000000</RamSnippetAddress>
     <UncachedRange />
     <preserveEEPROM>true</preserveEEPROM>
-    <OverrideVtorValue />
+    <OverrideVtorValue>exception_table</OverrideVtorValue>
     <BootSegment>2</BootSegment>
     <ResetRule>0</ResetRule>
     <eraseonlaunchrule>0</eraseonlaunchrule>
     <EraseKey />
+    <avrtool>custom</avrtool>
+    <avrtoolserialnumber />
+    <avrdeviceexpectedsignature>0x1E9587</avrdeviceexpectedsignature>
+    <custom>
+      <ToolOptions xmlns="">
+        <InterfaceProperties>
+        </InterfaceProperties>
+      </ToolOptions>
+      <ToolType xmlns="">custom</ToolType>
+      <ToolNumber xmlns="">
+      </ToolNumber>
+      <ToolName xmlns="">Custom Programming Tool</ToolName>
+    </custom>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
@@ -103,7 +116,7 @@
   </avrgcc.linker.libraries.Libraries>
   <avrgcc.linker.memorysettings.Flash>
     <ListValues>
-      <Value>.text=0xFC00</Value>
+      <Value>.text=0x7800</Value>
     </ListValues>
   </avrgcc.linker.memorysettings.Flash>
   <avrgcc.linker.miscellaneous.LinkerFlags>-Wl,--section-start,.data=0x80FE00,--defsym=__heap_end=0x80FFFF</avrgcc.linker.miscellaneous.LinkerFlags>
@@ -117,7 +130,7 @@
     </ToolchainSettings>
     <PreBuildEvent>
     </PreBuildEvent>
-    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-iCE40UP5K-arduboy-emulator\l1_boot_ld.mem" -g 2 -b 1f800 &amp; IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-arduboy-emulator\l1_boot_ld.mem" -g 2 -b 1f800</PostBuildEvent>
+    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-iCE40UP5K-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000 &amp; IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000</PostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\arduFPGA-app-common\def_arduboy_mega.h">

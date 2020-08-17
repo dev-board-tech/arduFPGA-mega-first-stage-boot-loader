@@ -10,7 +10,7 @@
 
 #define SSD1306_USE_NO_BUF
 #define POWER_UP_WITH_USER_APP
-//#define DEBUG_ENABLE
-#define DEBUG_BINARY
+#define DEBUG_ENABLE
+//#define DEBUG_BINARY
 
 #endif /* DEF_H_ */
