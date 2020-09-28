@@ -27,10 +27,11 @@
 #include <avr/eeprom.h>
 #include <stdlib.h>
 #include "def.h"
-#include "spi.h"
+#include "driver/spi.h"
 #include "device/25flash.h"
-#include "uart.h"
+#include "driver/uart.h"
 #include "unions.h"
+#include "util.h"
 
 void (*service_Ptr)(void) = NULL;
 volatile void *sp_value = 0;
@@ -43,7 +44,7 @@ volatile uint8_t debug_char_in_cnt = 0;
 volatile uint8_t volume;
 volatile bool usb_function_ntsc_out = false;
 volatile bool aud_function_ntsc_out = false;
-volatile int8_t debug_char_buf[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+volatile uint8_t debug_char_buf[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 	
 spi_t spi;
 uint8_t screen_buf[1];
@@ -272,6 +273,10 @@ void init() {
 	"ldi	r29, 0xFF \n\t"//	; 10
 	"out	0x3e, r29 \n\t"//	; 62
 	"out	0x3d, r28 \n\t");//	; 61
+	uint16_t cnt = 0x100;
+	for (; cnt < 0xFE00; cnt++) {
+		*((uint8_t *)cnt) = 0;
+	}
 }
 
 int main(void)
@@ -337,7 +342,7 @@ int main(void)
 	} else {
 		BOOT_STAT &= ~BOOT_STAT_NMI_INT_ENABLE;
 	}
-	uart_init(115200);
+	uart_init(38400);
 	uart_put_s("arduFPGA iCE40UP5k (morgoth@devboard.tech) \n\r");
 	asm("jmp 0x0000");
 }
@@ -347,6 +352,9 @@ void _set_serv_addr(uint16_t service_addr) {
 	cli();
 	service_Ptr = (void *)service_addr;
 	_SFR_IO8(0x3F) = tmp;
+	/*if(tmp & 0x80) {
+		sei();
+	}*/
 	//asm("ret");
 }
 
@@ -370,44 +378,227 @@ void _flash_write(uint32_t a, uint16_t *buf, uint16_t len) {
 }
 
 
-void char_received(int8_t c) {
-	if(c == 0x08 && debug_char_buf != 0) {
-		debug_char_in_cnt--;
-		uart_put_c(0x08);
+void char_received(uint8_t c) {
+	if(c == 0x08) {
+		uart_put_c(c);
+		if(debug_char_in_cnt > 0) {
+			debug_char_in_cnt--;
+		}
+		debug_char_buf[debug_char_in_cnt] = 0;
 	} else {
 		if(debug_char_in_cnt < sizeof(debug_char_buf)) {
+			uart_put_c(c);
 			debug_char_buf[debug_char_in_cnt] = c;
-			uart_put_c(debug_char_buf[debug_char_in_cnt]);
 			debug_char_in_cnt++;
 		}
 		if(c == 0x0a || c == 0x0d) {
-			if(debug_char_in_cnt >= 5 && !strncmp((char *)debug_char_buf, "DUMP", 4)) {
-				uint8_t *ptr = (uint8_t *)uni_8_to_16(atoi((char *)debug_char_buf + 4), 0);
-				uint16_t cnt = 0;
-				for (; cnt < 256; cnt++) {
-#ifndef DEBUG_BINARY
-					uart_put_s("ADDR: 0x");
-					uart_print_hex_short((uint16_t)ptr + cnt);
-					uart_put_s("  HEX VAL: 0x");
-					uart_print_hex_char(ptr[cnt]);
-					uart_put_s("  BIN VAL: 0b");
-					uart_print_bin_char(ptr[cnt]);
-					uart_put_s("  ASCII VAL: ");
-					if(ptr[cnt] >= 32 && ptr[cnt] < 127) {
-						uart_put_c(ptr[cnt]);
+			if(debug_char_in_cnt >= 12 && (debug_char_buf[0] == 'W' || debug_char_buf[0] == 'R') && debug_char_buf[2] == ':' && debug_char_buf[7] == '-') { //WR:0000-0000
+				uint8_t bin_buff_addr[2];
+				uint8_t bin_buff_len[2];
+				if(util_get_bin_from_hex_buf(bin_buff_addr, (char *)(debug_char_buf + 3), 2) == 2 && util_get_bin_from_hex_buf(bin_buff_len, (char *)(debug_char_buf + 8), 2) == 2) {
+					uint32_t cnt = uni_8_to_16(bin_buff_addr[0], bin_buff_addr[1]);
+					uint32_t end = uni_8_to_16(bin_buff_len[0], bin_buff_len[1]);
+					if(end == 0) {
+						end = 0x10000;
 					}
-					uart_put_s("\n\r");
-#else
-					uart_put_c(ptr[cnt]);
-#endif
+					uint8_t cm0 = debug_char_buf[0];
+					uint8_t cm1 = debug_char_buf[1];
+					if(cm0 == 'R') {
+						if(cm1 == 'F') {
+							if(cnt & 0x0F) {
+								uart_put_s("\n\r>");
+								uart_print_hex_short(cnt);
+								uart_put_s(": ");
+							}
+							for (; cnt < end; cnt++) {
+								if((cnt & 0x0F) == 0) {
+									uart_put_s("\n\r>");
+									uart_print_hex_short(cnt);
+									uart_put_s(": ");
+								} else {
+									uart_put_c(' ');
+								}
+								uart_print_hex_char(pgm_read_byte(cnt));
+							}
+							uart_put_s("\n\r");
+						} else if(cm1 == 'E') {
+							if(cnt & 0x0F) {
+								uart_put_s("\n\r>");
+								uart_print_hex_short(cnt);
+								uart_put_s(": ");
+							}
+							for (; cnt < end; cnt++) {
+								if((cnt & 0x0F) == 0) {
+									uart_put_s("\n\r>");
+									uart_print_hex_short(cnt);
+									uart_put_s(": ");
+									} else {
+									uart_put_c(' ');
+								}
+								uart_print_hex_char(eeprom_read_byte((uint8_t *)(uint16_t)cnt));
+							}
+							uart_put_s("\n\r");
+						} else if(cm1 == 'R') {
+							if(cnt & 0x0F) {
+								uart_put_s("\n\r>");
+								uart_print_hex_short(cnt);
+								uart_put_s(": ");
+							}
+							for (; cnt < end; cnt++) {
+								if((cnt & 0x0F) == 0) {
+									uart_put_s("\n\r>");
+									uart_print_hex_short(cnt);
+									uart_put_s(": ");
+									} else {
+									uart_put_c(' ');
+								}
+								uart_print_hex_char(*((uint8_t *)(uint16_t)cnt));
+							}
+							uart_put_s("\n\r");
+						}
+					} else if(cm0 == 'W') {
+						if(cm1 == 'F') {
+							uart_put_c('r');
+							F_CNT_L = 0;
+							F_CNT_H = 0;
+							for (; cnt < end; cnt++) {
+								uint8_t err = 0;
+								uint8_t c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+								c0 = uart_get_c();
+								if(util_is_hex(c0)) {
+									c1 = uart_get_c();
+									if(util_is_hex(c1)) {
+										c2 = uart_get_c();
+										if(util_is_hex(c2)) {
+											c3 = uart_get_c();
+											if(!util_is_hex(c3)) {
+												err++;
+												uart_put_c('e');
+											}
+										} else {
+											err++;
+											uart_put_c('e');
+										}
+									} else {
+										err++;
+										uart_put_c('e');
+									}
+								} else {
+									err++;
+									uart_put_c('e');
+								}
+								if(!err) {
+									util_get_bin_from_hex_char(&c0, c0);
+									util_get_bin_from_hex_char(&c1, c1);
+									util_get_bin_from_hex_char(&c2, c2);
+									util_get_bin_from_hex_char(&c3, c3);
+									uart_put_c('k');
+									BOOT_STAT |= BOOT_STAT_APP_PGM_WR_EN;
+									F_DATA_L = (c2 << 4) | (c3  & 0x0F);
+									F_DATA_H = (c0 << 4) | (c1  & 0x0F);
+									BOOT_STAT &= ~BOOT_STAT_APP_PGM_WR_EN;
+								} else if(err == 1) {
+									if(c0 == 'L') {
+										uint16_t cnt = 0;
+										for (; cnt < 0xFE00; cnt++) {
+											*((uint8_t *)cnt) = 0;
+										}
+										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
+										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
+										sei();
+										asm("jmp 0x0000");
+									} else if(c0 == 'X') {
+										break;
+									}
+								}
+							}
+							uart_put_c('K');
+						} else if(cm1 == 'E') {
+							for (; cnt < end; cnt++) {
+								uint8_t err = 0;
+								uint8_t c0 = 0, c1 = 0;
+								c0 = uart_get_c();
+								if(util_is_hex(c0)) {
+									c1 = uart_get_c();
+									if(!util_is_hex(c1)) {
+										err++;
+										uart_put_c('e');
+									}
+								} else {
+									err++;
+									uart_put_c('e');
+								}
+								if(!err) {
+									util_get_bin_from_hex_char(&c0, c0);
+									util_get_bin_from_hex_char(&c1, c1);
+									uart_put_c('k');
+									eeprom_write_byte((uint8_t *)(uint16_t)cnt, (c0 << 4) | (c1  & 0x0F));
+								} else if(err == 1) {
+									if(c0 == 'L') {
+										uint16_t cnt = 0;
+										for (; cnt < 0xFE00; cnt++) {
+											*((uint8_t *)cnt) = 0;
+										}
+										uart_put_c('K');
+										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
+										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
+										sei();
+										asm("jmp 0x0000");
+									} else if(c0 == 'X') {
+										uart_put_c('K');
+										break;
+									}
+								}
+							}
+							uart_put_c('K');
+						} else if(cm1 == 'R') {
+							for (; cnt < end; cnt++) {
+								uint8_t err = 0;
+								uint8_t c0 = 0, c1 = 0;
+								c0 = uart_get_c();
+								if(util_is_hex(c0)) {
+									c1 = uart_get_c();
+									if(!util_is_hex(c1)) {
+										err++;
+										uart_put_c('e');
+									}
+									} else {
+									err++;
+									uart_put_c('e');
+								}
+								if(!err) {
+									util_get_bin_from_hex_char(&c0, c0);
+									util_get_bin_from_hex_char(&c1, c1);
+									uart_put_c('k');
+									*((uint8_t *)(uint16_t)cnt) = (c0 << 4) | (c1  & 0x0F);
+								} else if(err == 1) {
+									if(c0 == 'L') {
+										uint16_t cnt = 0;
+										for (; cnt < 0xFE00; cnt++) {
+											*((uint8_t *)cnt) = 0;
+										}
+										uart_put_c('K');
+										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
+										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
+										sei();
+										asm("jmp 0x0000");
+									} else if(c0 == 'X') {
+										uart_put_c('K');
+										break;
+									}
+								}
+							}
+							uart_put_c('K');
+						}
+					}
+				} else {
+					uart_put_s("ERR FORMAT\n\r");
 				}
-#ifdef DEBUG_BINARY
-				uart_put_c('\r');
-#endif
 			} else {
 				uart_put_s("ERR FORMAT\n\r");
 			}
 			debug_char_in_cnt = 0;
+			memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
 		}
 	}
 }

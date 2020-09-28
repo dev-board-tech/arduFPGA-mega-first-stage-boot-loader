@@ -153,25 +153,29 @@
       <SubType>compile</SubType>
       <Link>25flash.h</Link>
     </Compile>
-    <Compile Include="..\arduFPGA-app-common\spi.c">
+    <Compile Include="..\arduFPGA-app-common\driver\spi.c">
       <SubType>compile</SubType>
       <Link>spi.c</Link>
     </Compile>
-    <Compile Include="..\arduFPGA-app-common\spi.h">
+    <Compile Include="..\arduFPGA-app-common\driver\spi.h">
       <SubType>compile</SubType>
       <Link>spi.h</Link>
     </Compile>
-    <Compile Include="..\arduFPGA-app-common\uart.c">
+    <Compile Include="..\arduFPGA-app-common\driver\uart.c">
       <SubType>compile</SubType>
       <Link>uart.c</Link>
     </Compile>
-    <Compile Include="..\arduFPGA-app-common\uart.h">
+    <Compile Include="..\arduFPGA-app-common\driver\uart.h">
       <SubType>compile</SubType>
       <Link>uart.h</Link>
     </Compile>
     <Compile Include="..\arduFPGA-app-common\unions.h">
       <SubType>compile</SubType>
       <Link>unions.h</Link>
+    </Compile>
+    <Compile Include="..\arduFPGA-app-common\util.c">
+      <SubType>compile</SubType>
+      <Link>util.c</Link>
     </Compile>
     <Compile Include="..\arduFPGA-app-common\util.h">
       <SubType>compile</SubType>
