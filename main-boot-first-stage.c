@@ -342,7 +342,7 @@ int main(void)
 	} else {
 		BOOT_STAT &= ~BOOT_STAT_NMI_INT_ENABLE;
 	}
-	uart_init(38400);
+	uart_init(115200);
 	uart_put_s("arduFPGA iCE40UP5k (morgoth@devboard.tech) \n\r");
 	asm("jmp 0x0000");
 }
@@ -458,7 +458,7 @@ void char_received(uint8_t c) {
 						}
 					} else if(cm0 == 'W') {
 						if(cm1 == 'F') {
-							uart_put_c('r');
+							uart_put_c('k');
 							F_CNT_L = 0;
 							F_CNT_H = 0;
 							for (; cnt < end; cnt++) {
@@ -514,6 +514,7 @@ void char_received(uint8_t c) {
 							}
 							uart_put_c('K');
 						} else if(cm1 == 'E') {
+							uart_put_c('k');
 							for (; cnt < end; cnt++) {
 								uint8_t err = 0;
 								uint8_t c0 = 0, c1 = 0;
@@ -552,6 +553,7 @@ void char_received(uint8_t c) {
 							}
 							uart_put_c('K');
 						} else if(cm1 == 'R') {
+							uart_put_c('k');
 							for (; cnt < end; cnt++) {
 								uint8_t err = 0;
 								uint8_t c0 = 0, c1 = 0;

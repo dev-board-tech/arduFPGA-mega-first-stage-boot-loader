@@ -72,28 +72,251 @@ Type by hand but no faster than 1000 characters per second :), in fact you type 
 The rule of 1000 characters/second is due to the fact that the check of UART receiving a new character is done by the service function that tick every 1mS and check for a received character, the function that check's for the character is a nonblocking function to avoid slowing down the user application.
 When the terminal is sending the debug information, the user application will freeze, the debug function is suspended when GUI boot-loader is in execution because the global interrupts are disabled.
 
-```
-DUMP0
-```
+When receiving and sending data the user application freezes, this way we avoid the situation when write or read of the same address is happened at the same time resulting in a outdated memory read or memory corruption and for faster transfers.
 
-Will dump the first 256 bytes of the RAM BUS, that in fact is the IO section, without the register values, the report is as fallowing:
+### Commands description:
 
-```
-ADDR: 0x0000  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-ADDR: 0x0001  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-ADDR: 0x0002  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-...
-```
-```
-DUMP1
-```
+##### For reading memory content:
 
-Will dump the second 256 bytes of the RAM BUS, that in fact is the first 256Bytes of the internal SRAM:
+RF: Read FLASH memory content.
+RE: Read EEPROM memory content.
+RR: Read RAM memory content.
+
+#### * "Send:" and "Receive:" are not commands, they describe the direction of the data flow from boot-loader perspective.
 
 ```
-ADDR: 0x0100  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-ADDR: 0x0101  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-ADDR: 0x0102  HEX VAL: 0x00  BIN VAL: 0b00000000  ASCII VAL: \n\r
-...
+Receive: RR:0000-0200
 ```
-The value after DUMP can be up to 256 in decimal format, optionally you can uncomment the "DEBUG_BINARY" definition line and will return 256Bytes representing the memory values in binary format, this way will cut ~200Bytes of program memory of the boot-loader.
+
+Will dump first 512 bytes of the RAM BUS, that in fact is IO section and first 256 bytes of RAM memory, without the register values ( registers are not connected to the RAM BUS in this design ), the report looks as fallowing:
+
+```
+Send:
+>0000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>0010: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>0020: fe 7f 03 10 e1 01 00 00 00 00 f5 fd 40 00 00 f1
+>0030: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>0040: 00 ff 03 00 00 00 00 00 00 00 00 00 50 00 ff 00
+>0050: 00 00 00 00 00 00 00 00 00 00 00 00 00 6f 7f 21
+>0060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>0070: 00 00 00 00 00 00 00 00 5a 02 00 00 00 00 00 00
+>0080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>0090: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>00a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>00b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>00c0: 00 00 00 00 00 00 00 00 02 18 06 00 10 00 0d 00
+>00d0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>00e0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>00f0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 07
+>0100: 00 00 ee 07 20 00 00 53 44 31 00 22 2a 3a 3c 3e
+>0110: 3f 7c 7f 00 2b 2c 3b 3d 5b 5d 00 01 03 05 07 09
+>0120: 0e 10 12 14 16 18 1c 1e 7d 1d 01 00 63 2c 00 1e
+>0130: 96 01 a0 1e 5a 01 00 1f 08 06 10 1f 06 06 20 1f
+>0140: 08 06 30 1f 08 06 40 1f 06 06 51 1f 07 00 59 1f
+>0150: 52 1f 5b 1f 54 1f 5d 1f 56 1f 5f 1f 60 1f 08 06
+>0160: 70 1f 0e 00 ba 1f bb 1f c8 1f c9 1f ca 1f cb 1f
+>0170: da 1f db 1f f8 1f f9 1f ea 1f eb 1f fa 1f fb 1f
+>0180: 80 1f 08 06 90 1f 08 06 a0 1f 08 06 b0 1f 04 00
+>0190: b8 1f b9 1f b2 1f bc 1f cc 1f 01 00 c3 1f d0 1f
+>01a0: 02 06 e0 1f 02 06 e5 1f 01 00 ec 1f f2 1f 01 00
+>01b0: fc 1f 4e 21 01 00 32 21 70 21 10 02 84 21 01 00
+>01c0: 83 21 d0 24 1a 05 30 2c 2f 04 60 2c 02 01 67 2c
+>01d0: 06 01 75 2c 02 01 80 2c 64 01 00 2d 26 08 41 ff
+>01e0: 1a 03 00 00 61 00 1a 03 e0 00 17 03 f8 00 07 03
+>01f0: ff 00 01 00 78 01 00 01 30 01 32 01 06 01 39 01
+```
+```
+Receive: RF:0100-0200
+```
+
+Will dump bytes from 0x100 to 0x200 of FLASH memory, the report looks as fallowing:
+
+```
+Send:
+>0100: 08 2a 1c 2a 08 00 08 08 3e 08 08 00 50 30 00 00
+>0110: 00 00 08 08 08 00 00 00 30 30 00 00 00 00 20 10
+>0120: 08 04 02 00 3e 51 49 45 3e 00 42 7f 40 00 00 00
+>0130: 42 61 51 49 46 00 21 41 45 4b 31 00 18 14 12 7f
+>0140: 10 00 27 45 45 45 39 00 3c 4a 49 49 30 00 01 71
+>0150: 09 05 03 00 36 49 49 49 36 00 06 49 49 29 1e 00
+>0160: 36 00 00 00 00 00 56 36 00 00 00 00 08 14 22 41
+>0170: 00 00 14 14 14 00 00 00 41 22 14 08 00 00 02 01
+>0180: 51 09 06 00 32 49 79 41 3e 00 7e 11 11 7e 00 00
+>0190: 7f 49 49 36 00 00 3e 41 41 22 00 00 7f 41 22 1c
+>01a0: 00 00 7f 49 49 41 00 00 7f 09 09 01 00 00 3e 41
+>01b0: 51 32 00 00 7f 08 08 7f 00 00 41 7f 41 00 00 00
+>01c0: 20 40 41 3f 01 00 7f 08 14 22 41 00 7f 40 40 00
+>01d0: 00 00 7f 02 04 02 7f 00 7f 04 08 10 7f 00 3e 41
+>01e0: 41 3e 00 00 7f 09 09 06 00 00 3e 41 51 21 5e 00
+>01f0: 7f 19 29 46 00 00 46 49 49 31 00 00 01 7f 01 00
+```
+
+##### For writing to memory:
+
+WF: Write to FLASH memory, the addresses is in words ( 16bit/word ), because will write words not bytes.
+WE: Write to EEPROM memory.
+WR: Write to RAM memory.
+
+Write 16 words beginning with address 0 to FLASH.
+One word is composed of four hex digits, any time when is receiving the first digit in the group will check if a L or a X is received, for description of L and X command continue reading at the end of the page.
+
+```
+Receive: "WF:0000-0010\r"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'k'
+Receive: "0000"
+Send: 'K'
+```
+
+To interrupt the writing loop replace:
+
+```
+Receive: "0000"
+with
+Receive: "X"
+
+Will send a "K" and exit the loop.
+```
+
+To interrupt the writing loop and jump to execute the application replace:
+
+```
+Receive: "0000"
+with
+Receive: "L"
+
+Will send a "K" exit the loop and jump to address 0 to execute the writed application.
+```
+
+Write 16 bytes beginning with address 0 to EEPROM.
+One word is composed of two hex digits, any time when is receiving the first digit in the group will check if a L or a X is received, for description of L and X command continue reading at the end of the page.
+
+```
+Receive: "WE:0000-0010\r"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'K'
+```
+
+
+Write 16 bytes beginning with address 0 to RAM.
+One word is composed of two hex digits, any time when is receiving the first digit in the group will check if a L or a X is received, for description of L and X command continue reading at the end of the page.
+
+```
+"WR:0000-0010\r"
+Receive: "WE:0000-0010\r"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'k'
+Receive: "00"
+Send: 'K'
+```
+
+To interrupt the writing loop replace:
+
+```
+Receive: "0000"
+with
+Receive: "X"
+
+Will send a "K" and exit the loop.
+```
+
+To interrupt the writing loop and jump to execute the application replace:
+
+```
+Receive: "0000"
+with
+Receive: "L"
+
+Will send a "K" exit the loop and jump to address 0 to execute the write application.
+```
+
+Thea read and write commands supports writing and reading from one byte to the whole memory fallowing the debug application to implement memory pooling and soft control of each IO on the BUS.
