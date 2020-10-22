@@ -499,10 +499,10 @@ void char_received(uint8_t c) {
 									BOOT_STAT &= ~BOOT_STAT_APP_PGM_WR_EN;
 								} else if(err == 1) {
 									if(c0 == 'L') {
-										uint16_t cnt = 0;
+										/*uint16_t cnt = 0;
 										for (; cnt < 0xFE00; cnt++) {
 											*((uint8_t *)cnt) = 0;
-										}
+										}*/
 										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
 										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
 										sei();
@@ -536,10 +536,10 @@ void char_received(uint8_t c) {
 									eeprom_write_byte((uint8_t *)(uint16_t)cnt, (c0 << 4) | (c1  & 0x0F));
 								} else if(err == 1) {
 									if(c0 == 'L') {
-										uint16_t cnt = 0;
+										/*uint16_t cnt = 0;
 										for (; cnt < 0xFE00; cnt++) {
 											*((uint8_t *)cnt) = 0;
-										}
+										}*/
 										uart_put_c('K');
 										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
 										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
@@ -575,10 +575,10 @@ void char_received(uint8_t c) {
 									*((uint8_t *)(uint16_t)cnt) = (c0 << 4) | (c1  & 0x0F);
 								} else if(err == 1) {
 									if(c0 == 'L') {
-										uint16_t cnt = 0;
+										/*uint16_t cnt = 0;
 										for (; cnt < 0xFE00; cnt++) {
 											*((uint8_t *)cnt) = 0;
-										}
+										}*/
 										uart_put_c('K');
 										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
 										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
