@@ -145,13 +145,12 @@
     </ToolchainSettings>
     <PreBuildEvent>
     </PreBuildEvent>
-    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-iCE40UP5K-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000 &amp; IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000</PostBuildEvent>
+    <PostBuildEvent>IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-iCE40UP5K-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000
+IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-arduboy-emulator\l1_boot_ld.mem" -g 2 -b f000
+IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-simple-tank-demo\rtl\l1_boot_ld.mem" -g 2 -b f000"
+IntelHexToVerilogMem.exe -i "$(OutputFileName).hex" -o "..\..\arduFPGA-game-console-lyra-wallet\rtl\l1_boot_ld.mem" -g 2 -b f000"</PostBuildEvent>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\arduFPGA-app-common\def_arduboy_mega.h">
-      <SubType>compile</SubType>
-      <Link>def_arduboy_mega.h</Link>
-    </Compile>
     <Compile Include="..\arduFPGA-app-common\delay.c">
       <SubType>compile</SubType>
       <Link>delay.c</Link>
@@ -197,6 +196,9 @@
       <Link>util.h</Link>
     </Compile>
     <Compile Include="def.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="def_arduboy_mega.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main-boot-first-stage.c">
