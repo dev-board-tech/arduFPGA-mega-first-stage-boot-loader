@@ -67,12 +67,10 @@ The caller need to call this function as *** void _flash_write(uint32_t a, uint1
 A soft debug using the UART interface at 115200b/s that can be check by hand using a terminal like PuTTy.
 
 #### Usage:
-Type by hand but no faster than 1000 characters per second :), in fact you type a character and wait for the terminal to respond with the typed character, will take in consideration the backspace and respond with backspace.
+Type by hand "DEBUG" word and press enter no faster than 1000 characters per second :), in fact you type a character and wait for the terminal to respond with the typed character, will take in consideration the backspace and respond with backspace, when enter is hit the boot-loader will respond with letter 'K'.
 
 The rule of 1000 characters/second is due to the fact that the check of UART receiving a new character is done by the service function that tick every 1mS and check for a received character, the function that check's for the character is a nonblocking function to avoid slowing down the user application.
-When the terminal is sending the debug information, the user application will freeze, the debug function is suspended when GUI boot-loader is in execution because the global interrupts are disabled.
-
-When receiving and sending data the user application freezes, this way we avoid the situation when write or read of the same address is happened at the same time resulting in a outdated memory read or memory corruption and for faster transfers.
+When the device is in debug mode the user application will freeze, this way we avoid the situation when write or read of the same address is happened at the same time resulting in a outdated memory read or memory corruption and for faster transfers.
 
 ### Commands description:
 
@@ -214,7 +212,7 @@ Receive: "0000"
 with
 Receive: "L"
 
-Will send a "K" exit the loop and jump to address 0 to execute the writed application.
+Will send a "K" exit the loop and jump to address 0 to execute the written application.
 ```
 
 Write 16 bytes beginning with address 0 to EEPROM.
@@ -319,4 +317,4 @@ Receive: "L"
 Will send a "K" exit the loop and jump to address 0 to execute the write application.
 ```
 
-Thea read and write commands supports writing and reading from one byte to the whole memory fallowing the debug application to implement memory pooling and soft control of each IO on the BUS.
+The read and write commands supports writing and reading from one byte to the whole memory fallowing the debug application to implement memory pooling and soft control of each IO on the BUS.

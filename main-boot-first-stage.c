@@ -33,12 +33,14 @@
 #include "unions.h"
 #include "util.h"
 
+#include "arduinoBoot.h"
+
 void (*service_Ptr)(void) = NULL;
 volatile void *sp_value = 0;
 volatile int16_t cnt_int_key_k;
 volatile uint8_t pushed;
 volatile bool after_power_up = true;
-uint8_t flash_buf[256];
+uint8_t flash_buf[FLASH_BUFF_LEN];
 volatile uint8_t led_color = 0;
 volatile uint8_t debug_char_in_cnt = 0;
 volatile uint8_t volume;
@@ -224,9 +226,9 @@ void eep_load () {
 	/*if(eep_size > FLASH_APP_EEP_SIZE) {
 		eep_size = EEP_SIZE;
 	}*/
-	for (uint16_t cnt = 0; cnt < EEP_SIZE; cnt += 0x100) {
-		_25flash_read(&flash_des, FLASH_APP_USER_START_ADDR + FLASH_APP_EEP_OFFSET + cnt, flash_buf, 0x100);
-		eeprom_write_block(flash_buf, (void *)cnt, 0x100);
+	for (uint16_t cnt = 0; cnt < EEP_SIZE; cnt += FLASH_BUFF_LEN) {
+		_25flash_read(&flash_des, FLASH_APP_USER_START_ADDR + FLASH_APP_EEP_OFFSET + cnt, flash_buf, FLASH_BUFF_LEN);
+		eeprom_write_block(flash_buf, (void *)cnt, FLASH_BUFF_LEN);
 	}
 }
 
@@ -245,11 +247,11 @@ void flash_load (uint32_t flash_app_addr) {
 	/* Load the APP from selected flash section. */
 	BOOT_STAT |= BOOT_STAT_APP_PGM_WR_EN;
 	for (uint32_t cnt = flash_app_addr; cnt < flash_app_addr + FLASH_SIZE; cnt += 2) {
-		if(!(cnt & 0x00FF)) {
-			_25flash_read(&flash_des, cnt, flash_buf, 0x100);
+		if(!(cnt & (FLASH_BUFF_LEN - 1))) {
+			_25flash_read(&flash_des, cnt, flash_buf, FLASH_BUFF_LEN);
 		}
-		F_DATA_L = flash_buf[(cnt & 0x00FF) + 0];
-		F_DATA_H = flash_buf[(cnt & 0x00FF) + 1];
+		F_DATA_L = flash_buf[(cnt & (FLASH_BUFF_LEN - 1)) + 0];
+		F_DATA_H = flash_buf[(cnt & (FLASH_BUFF_LEN - 1)) + 1];
 	}
 	BOOT_STAT &= ~BOOT_STAT_APP_PGM_WR_EN;
 
@@ -308,6 +310,13 @@ int main(void)
 	//flash_app.spi = &spi;
 	//flash_app.cs_port_out = &SPI_CS_5_PORT;
 	//flash_app.pin_mask = SPI_CS_5_PIN;
+	
+#ifdef USE_ARDUINO_BOOT_LOADER
+	if(~KBD_IN & KBD_INT_PIN) {
+		cli();
+		enter_arduino_bootloader();
+	}
+#endif
 
 	/* Choose the APP section in the FLASH to load. */
 	uint32_t flash_app_addr;
@@ -338,12 +347,14 @@ int main(void)
 	if(BOOT_STAT & BOOT_STAT_FLASH_APP_NR) {
 		eep_load();
 		BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
-		sei();
 	} else {
 		BOOT_STAT &= ~BOOT_STAT_NMI_INT_ENABLE;
 	}
 	uart_init(115200);
-	uart_put_s("arduFPGA iCE40UP5k (morgoth@devboard.tech) \n\r");
+	uart_put_s("arduFPGA iCE40UP5k (morgoth@devboard.tech)\n\r");
+	if(BOOT_STAT & BOOT_STAT_FLASH_APP_NR) {
+		sei();
+	}
 	asm("jmp 0x0000");
 }
 
@@ -378,100 +389,88 @@ void _flash_write(uint32_t a, uint16_t *buf, uint16_t len) {
 }
 
 
-void char_received(uint8_t c) {
-	if(c == 0x08) {
-		uart_put_c(c);
-		if(debug_char_in_cnt > 0) {
-			debug_char_in_cnt--;
-		}
-		debug_char_buf[debug_char_in_cnt] = 0;
-	} else {
-		if(debug_char_in_cnt < sizeof(debug_char_buf)) {
-			uart_put_c(c);
-			debug_char_buf[debug_char_in_cnt] = c;
-			debug_char_in_cnt++;
-		}
-		if(c == 0x0a || c == 0x0d) {
-			if(debug_char_in_cnt >= 12 && (debug_char_buf[0] == 'W' || debug_char_buf[0] == 'R') && debug_char_buf[2] == ':' && debug_char_buf[7] == '-') { //WR:0000-0000
-				uint8_t bin_buff_addr[2];
-				uint8_t bin_buff_len[2];
-				if(util_get_bin_from_hex_buf(bin_buff_addr, (char *)(debug_char_buf + 3), 2) == 2 && util_get_bin_from_hex_buf(bin_buff_len, (char *)(debug_char_buf + 8), 2) == 2) {
-					uint32_t cnt = uni_8_to_16(bin_buff_addr[0], bin_buff_addr[1]);
-					uint32_t end = uni_8_to_16(bin_buff_len[0], bin_buff_len[1]);
-					if(end == 0) {
-						end = 0x10000;
-					}
-					uint8_t cm0 = debug_char_buf[0];
-					uint8_t cm1 = debug_char_buf[1];
-					if(cm0 == 'R') {
-						if(cm1 == 'F') {
-							if(cnt & 0x0F) {
-								uart_put_s("\n\r>");
-								uart_print_hex_short(cnt);
-								uart_put_s(": ");
+void debug() {
+	debug_char_in_cnt = 0;
+	memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
+	while (1) {
+		uint8_t c;
+		if(uart_get_c_nb(&c)) {
+			if(c == 0x08) {
+				uart_put_c(c);
+				if(debug_char_in_cnt > 0) {
+					debug_char_in_cnt--;
+				}
+				debug_char_buf[debug_char_in_cnt] = 0;
+			} else {
+				if(debug_char_in_cnt < sizeof(debug_char_buf)) {
+					uart_put_c(c);
+					debug_char_buf[debug_char_in_cnt] = c;
+					debug_char_in_cnt++;
+				}
+				if(c == 'X') {
+					return;
+				}
+				if(c == 0x0a || c == 0x0d) {
+					if(debug_char_in_cnt >= 12 && (debug_char_buf[0] == 'W' || debug_char_buf[0] == 'R') && debug_char_buf[2] == ':' && debug_char_buf[7] == '-') { //WR:0000-0000
+						uint8_t bin_buff_addr[2];
+						uint8_t bin_buff_len[2];
+						if(util_get_bin_from_hex_buf(bin_buff_addr, (char *)(debug_char_buf + 3), 2) == 2 && util_get_bin_from_hex_buf(bin_buff_len, (char *)(debug_char_buf + 8), 2) == 2) {
+							uint32_t cnt = uni_8_to_16(bin_buff_addr[0], bin_buff_addr[1]);
+							uint32_t end = uni_8_to_16(bin_buff_len[0], bin_buff_len[1]);
+							if(end == 0) {
+								end = 0x10000;
 							}
-							for (; cnt < end; cnt++) {
-								if((cnt & 0x0F) == 0) {
+							uint8_t cm0 = debug_char_buf[0];
+							uint8_t cm1 = debug_char_buf[1];
+							if(cm0 == 'R') {
+								if(cnt & 0x0F) {
 									uart_put_s("\n\r>");
 									uart_print_hex_short(cnt);
 									uart_put_s(": ");
-								} else {
-									uart_put_c(' ');
 								}
-								uart_print_hex_char(pgm_read_byte(cnt));
-							}
-							uart_put_s("\n\r");
-						} else if(cm1 == 'E') {
-							if(cnt & 0x0F) {
-								uart_put_s("\n\r>");
-								uart_print_hex_short(cnt);
-								uart_put_s(": ");
-							}
-							for (; cnt < end; cnt++) {
-								if((cnt & 0x0F) == 0) {
-									uart_put_s("\n\r>");
-									uart_print_hex_short(cnt);
-									uart_put_s(": ");
+								for (; cnt < end; cnt++) {
+									if((cnt & 0x0F) == 0) {
+										uart_put_s("\n\r>");
+										uart_print_hex_short(cnt);
+										uart_put_s(": ");
 									} else {
-									uart_put_c(' ');
+										uart_put_c(' ');
+									}
+									if(cm1 == 'F') {
+										uart_print_hex_char(pgm_read_byte(cnt));
+									} else if(cm1 == 'E') {
+										uart_print_hex_char(eeprom_read_byte((uint8_t *)(uint16_t)cnt));
+									} else if(cm1 == 'R') {
+										uart_print_hex_char(*((uint8_t *)(uint16_t)cnt));
+									}
 								}
-								uart_print_hex_char(eeprom_read_byte((uint8_t *)(uint16_t)cnt));
-							}
-							uart_put_s("\n\r");
-						} else if(cm1 == 'R') {
-							if(cnt & 0x0F) {
-								uart_put_s("\n\r>");
-								uart_print_hex_short(cnt);
-								uart_put_s(": ");
-							}
-							for (; cnt < end; cnt++) {
-								if((cnt & 0x0F) == 0) {
-									uart_put_s("\n\r>");
-									uart_print_hex_short(cnt);
-									uart_put_s(": ");
-									} else {
-									uart_put_c(' ');
-								}
-								uart_print_hex_char(*((uint8_t *)(uint16_t)cnt));
-							}
-							uart_put_s("\n\r");
-						}
-					} else if(cm0 == 'W') {
-						if(cm1 == 'F') {
-							uart_put_c('k');
-							F_CNT_L = 0;
-							F_CNT_H = 0;
-							for (; cnt < end; cnt++) {
-								uint8_t err = 0;
-								uint8_t c0 = 0, c1 = 0, c2 = 0, c3 = 0;
-								c0 = uart_get_c();
-								if(util_is_hex(c0)) {
-									c1 = uart_get_c();
-									if(util_is_hex(c1)) {
-										c2 = uart_get_c();
-										if(util_is_hex(c2)) {
-											c3 = uart_get_c();
-											if(!util_is_hex(c3)) {
+								uart_put_s("\n\r");
+								debug_char_in_cnt = 0;
+								memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
+							} else if(cm0 == 'W') {
+								if(cm1 == 'F') {
+									uart_put_c('k');
+									F_CNT_L = 0;
+									F_CNT_H = 0;
+									for (; cnt < end; cnt++) {
+										uint8_t err = 0;
+										uint8_t c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+										c0 = uart_get_c();
+										if(util_is_hex(c0)) {
+											c1 = uart_get_c();
+											if(util_is_hex(c1)) {
+												c2 = uart_get_c();
+												if(util_is_hex(c2)) {
+													c3 = uart_get_c();
+													if(!util_is_hex(c3)) {
+														err++;
+														uart_put_c('e');
+													}
+												} else {
+													err++;
+													uart_put_c('e');
+												}
+											} else {
 												err++;
 												uart_put_c('e');
 											}
@@ -479,128 +478,86 @@ void char_received(uint8_t c) {
 											err++;
 											uart_put_c('e');
 										}
-									} else {
-										err++;
-										uart_put_c('e');
+										if(!err) {
+											util_get_bin_from_hex_char(&c0, c0);
+											util_get_bin_from_hex_char(&c1, c1);
+											util_get_bin_from_hex_char(&c2, c2);
+											util_get_bin_from_hex_char(&c3, c3);
+											uart_put_c('k');
+											BOOT_STAT |= BOOT_STAT_APP_PGM_WR_EN;
+											F_DATA_L = (c2 << 4) | (c3  & 0x0F);
+											F_DATA_H = (c0 << 4) | (c1  & 0x0F);
+											BOOT_STAT &= ~BOOT_STAT_APP_PGM_WR_EN;
+										} else if(err == 1) {
+											if(c0 == 'L') {
+												/*uint16_t cnt = 0;
+												for (; cnt < 0xFE00; cnt++) {
+													*((uint8_t *)cnt) = 0;
+												}*/
+												BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
+												BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
+												sei();
+												asm("jmp 0x0000");
+											} else if(cm0 == 'X') {
+												return;
+											}
+										}
 									}
+									uart_put_c('K');
+									debug_char_in_cnt = 0;
+									memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
+								} else if(cm1 == 'E' || cm1 == 'R') {
+									uart_put_c('k');
+									for (; cnt < end; cnt++) {
+										uint8_t err = 0;
+										uint8_t c0 = 0, c1 = 0;
+										c0 = uart_get_c();
+										if(util_is_hex(c0)) {
+											c1 = uart_get_c();
+											if(!util_is_hex(c1)) {
+												err++;
+												uart_put_c('e');
+											}
+										} else {
+											err++;
+											uart_put_c('e');
+										}
+										if(!err) {
+											util_get_bin_from_hex_char(&c0, c0);
+											util_get_bin_from_hex_char(&c1, c1);
+											uart_put_c('k');
+											if(cm1 == 'E') {
+												eeprom_write_byte((uint8_t *)(uint16_t)cnt, (c0 << 4) | (c1  & 0x0F));
+											} else if(cm1 == 'R') {
+												*((uint8_t *)(uint16_t)cnt) = (c0 << 4) | (c1  & 0x0F);
+											}
+										} else if(err == 1) {
+											if(c0 == 'L') {
+												uart_put_c('K');
+												BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
+												BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
+												sei();
+												asm("jmp 0x0000");
+											} else if(c0 == 'X') {
+												return;
+											}
+										}
+									}
+									uart_put_c('K');
+									debug_char_in_cnt = 0;
+									memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
 								} else {
-									err++;
 									uart_put_c('e');
 								}
-								if(!err) {
-									util_get_bin_from_hex_char(&c0, c0);
-									util_get_bin_from_hex_char(&c1, c1);
-									util_get_bin_from_hex_char(&c2, c2);
-									util_get_bin_from_hex_char(&c3, c3);
-									uart_put_c('k');
-									BOOT_STAT |= BOOT_STAT_APP_PGM_WR_EN;
-									F_DATA_L = (c2 << 4) | (c3  & 0x0F);
-									F_DATA_H = (c0 << 4) | (c1  & 0x0F);
-									BOOT_STAT &= ~BOOT_STAT_APP_PGM_WR_EN;
-								} else if(err == 1) {
-									if(c0 == 'L') {
-										/*uint16_t cnt = 0;
-										for (; cnt < 0xFE00; cnt++) {
-											*((uint8_t *)cnt) = 0;
-										}*/
-										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
-										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
-										sei();
-										asm("jmp 0x0000");
-									} else if(c0 == 'X') {
-										break;
-									}
-								}
 							}
-							uart_put_c('K');
-						} else if(cm1 == 'E') {
-							uart_put_c('k');
-							for (; cnt < end; cnt++) {
-								uint8_t err = 0;
-								uint8_t c0 = 0, c1 = 0;
-								c0 = uart_get_c();
-								if(util_is_hex(c0)) {
-									c1 = uart_get_c();
-									if(!util_is_hex(c1)) {
-										err++;
-										uart_put_c('e');
-									}
-								} else {
-									err++;
-									uart_put_c('e');
-								}
-								if(!err) {
-									util_get_bin_from_hex_char(&c0, c0);
-									util_get_bin_from_hex_char(&c1, c1);
-									uart_put_c('k');
-									eeprom_write_byte((uint8_t *)(uint16_t)cnt, (c0 << 4) | (c1  & 0x0F));
-								} else if(err == 1) {
-									if(c0 == 'L') {
-										/*uint16_t cnt = 0;
-										for (; cnt < 0xFE00; cnt++) {
-											*((uint8_t *)cnt) = 0;
-										}*/
-										uart_put_c('K');
-										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
-										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
-										sei();
-										asm("jmp 0x0000");
-									} else if(c0 == 'X') {
-										uart_put_c('K');
-										break;
-									}
-								}
-							}
-							uart_put_c('K');
-						} else if(cm1 == 'R') {
-							uart_put_c('k');
-							for (; cnt < end; cnt++) {
-								uint8_t err = 0;
-								uint8_t c0 = 0, c1 = 0;
-								c0 = uart_get_c();
-								if(util_is_hex(c0)) {
-									c1 = uart_get_c();
-									if(!util_is_hex(c1)) {
-										err++;
-										uart_put_c('e');
-									}
-									} else {
-									err++;
-									uart_put_c('e');
-								}
-								if(!err) {
-									util_get_bin_from_hex_char(&c0, c0);
-									util_get_bin_from_hex_char(&c1, c1);
-									uart_put_c('k');
-									*((uint8_t *)(uint16_t)cnt) = (c0 << 4) | (c1  & 0x0F);
-								} else if(err == 1) {
-									if(c0 == 'L') {
-										/*uint16_t cnt = 0;
-										for (; cnt < 0xFE00; cnt++) {
-											*((uint8_t *)cnt) = 0;
-										}*/
-										uart_put_c('K');
-										BOOT_STAT |= BOOT_STAT_FLASH_APP_NR;
-										BOOT_STAT |= BOOT_STAT_NMI_INT_ENABLE;
-										sei();
-										asm("jmp 0x0000");
-									} else if(c0 == 'X') {
-										uart_put_c('K');
-										break;
-									}
-								}
-							}
-							uart_put_c('K');
+						} else {
+							uart_put_s("ERR FORMAT\n\r");
 						}
+					} else {
+						uart_put_s("ERR FORMAT\n\r");
 					}
-				} else {
-					uart_put_s("ERR FORMAT\n\r");
 				}
-			} else {
-				uart_put_s("ERR FORMAT\n\r");
 			}
-			debug_char_in_cnt = 0;
-			memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
 		}
 	}
 }
@@ -614,8 +571,22 @@ void _int(void) {
 #ifdef DEBUG_ENABLE
 	//if(BOOT_STAT & BOOT_STAT_DEBUG_EN) {
 		uint8_t c;
+		//uart_put_c('-');
 		if(uart_get_c_nb(&c)) {
-			char_received(c);
+			if(debug_char_in_cnt < sizeof(debug_char_buf)) {
+				debug_char_buf[debug_char_in_cnt++] = c;
+			}
+			if(c == 0x0a || c == 0x0d) {
+				if(!memcmp((char *)debug_char_buf, "DEBUG", 5)) {
+					uart_put_c('K');
+					debug();
+					uart_put_c('K');
+				}
+				debug_char_in_cnt = 0;
+				memset((char *)debug_char_buf, 0, sizeof(debug_char_buf));
+			} else {
+				uart_put_c(c);
+			}
 		}
 	//}
 #endif
